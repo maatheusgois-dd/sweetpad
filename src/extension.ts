@@ -17,7 +17,7 @@ import {
 import { BuildManager } from "./build/manager.js";
 import { XcodeBuildTaskProvider } from "./build/provider.js";
 import { DefaultSchemeStatusBar } from "./build/status-bar.js";
-import { BuildTreeProvider } from "./build/tree.js";
+import { WorkspaceTreeProvider } from "./build/tree.js";
 import { ExtensionContext } from "./common/commands.js";
 import { errorReporting } from "./common/error-reporting.js";
 import { Logger } from "./common/logger.js";
@@ -77,6 +77,7 @@ export function activate(context: vscode.ExtensionContext) {
   // "DestinationsManager" have methods to get the list of current ios devices and simulators, and it also have an
   // event emitter that emits an event when the list of devices or simulators changes.
   const buildManager = new BuildManager();
+  void buildManager.refresh(); // Initial refresh to populate workspaces and schemes
   const devicesManager = new DevicesManager();
   const simulatorsManager = new SimulatorsManager();
   const destinationsManager = new DestinationsManager({
@@ -101,7 +102,11 @@ export function activate(context: vscode.ExtensionContext) {
   testingManager.context = _context;
 
   // Trees 🎄
-  const buildTreeProvider = new BuildTreeProvider({
+  // const buildTreeProvider = new BuildTreeProvider({
+  //   context: _context,
+  //   buildManager: buildManager,
+  // });
+  const workspaceTreeProvider = new WorkspaceTreeProvider({
     context: _context,
     buildManager: buildManager,
   });
@@ -131,7 +136,8 @@ export function activate(context: vscode.ExtensionContext) {
     context: _context,
   });
   d(schemeStatusBar);
-  d(tree("sweetpad.build.view", buildTreeProvider));
+  //d(tree("sweetpad.build.view", workspaceTreeProvider));
+  d(tree("sweetpad.view.workspaces", workspaceTreeProvider));
   d(command("sweetpad.build.refreshView", async () => buildManager.refresh()));
   d(command("sweetpad.build.launch", launchCommand));
   d(command("sweetpad.build.run", runCommand));

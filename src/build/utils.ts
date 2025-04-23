@@ -333,7 +333,7 @@ export async function detectXcodeWorkspacesPaths(): Promise<string[]> {
     directory: workspace,
     depth: 4,
     matcher: (file) => {
-      return file.name.endsWith(".xcworkspace");
+      return file.name.endsWith("project.xcworkspace");
     },
   });
   return paths;

@@ -1,10 +1,10 @@
 {
-  "name": "sweetpad",
+  "name": "sweetpad-doordash",
   "type": "commonjs",
-  "displayName": "SweetPad (iOS/Swift development)",
+  "displayName": "SweetPad-Doordash (iOS/Swift development)",
   "description": "Develop Swift/iOS projects in VS Code",
   "version": "0.1.60",
-  "publisher": "sweetpad",
+  "publisher": "doordash",
   "icon": "images/logo.png",
   "license": "MIT",
   "repository": {
@@ -252,7 +252,7 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "speedpad-view",
+          "id": "sweetpad-view",
           "title": "SweetPad",
           "icon": "images/logo-panel.png",
           "when": "sweetpad.enabled"
@@ -260,25 +260,30 @@
       ]
     },
     "views": {
-      "speedpad-view": [
+      "sweetpad-view": [
         {
-          "id": "sweetpad.build.view",
-          "name": "Build",
+          "id": "sweetpad.view.workspaces",
+          "name": "WORKSPACES",
           "visibility": "visible"
         },
         {
           "id": "sweetpad.destinations.view",
-          "name": "Destinations",
+          "name": "DESTINATIONS",
           "visibility": "collapsed"
         },
         {
           "id": "sweetpad.tools.view",
-          "name": "Tools",
+          "name": "TOOLS",
           "visibility": "collapsed"
         }
       ]
     },
     "viewsWelcome": [
+      {
+        "view": "sweetpad.view.workspaces",
+        "contents": "No Xcode workspaces found in the current project.\n[Learn More](command:sweetpad.tools.documentation)",
+        "when": "sweetpad.workspaces.noWorkspaces"
+      },
       {
         "view": "sweetpad.build.view",
         "contents": "No Xcode scheme was found. Select the workspace that has the Xcode project to use SweetPad.\n[Select Workspace](command:sweetpad.build.selectXcodeWorkspace)\nAlso you can run diagnose to try to detect the root of the problem\n[Run diagnose](command:sweetpad.build.diagnoseSetup)",
@@ -554,56 +559,6 @@
           "group": "inline@1"
         },
         {
-          "command": "sweetpad.build.launch",
-          "when": "view == sweetpad.build.view",
-          "group": "inline@2"
-        },
-        {
-          "command": "sweetpad.build.build",
-          "when": "view == sweetpad.build.view",
-          "group": "inline@1"
-        },
-        {
-          "command": "sweetpad.build.launch",
-          "when": "view == sweetpad.build.view",
-          "group": "context@1"
-        },
-        {
-          "command": "sweetpad.build.build",
-          "when": "view == sweetpad.build.view",
-          "group": "context@2"
-        },
-        {
-          "command": "sweetpad.build.run",
-          "when": "view == sweetpad.build.view",
-          "group": "context@3"
-        },
-        {
-          "command": "sweetpad.build.test",
-          "when": "view == sweetpad.build.view",
-          "group": "context@4"
-        },
-        {
-          "command": "sweetpad.build.clean",
-          "when": "view == sweetpad.build.view",
-          "group": "context@5"
-        },
-        {
-          "command": "sweetpad.build.resolveDependencies",
-          "when": "view == sweetpad.build.view",
-          "group": "context@6"
-        },
-        {
-          "command": "sweetpad.build.setDefaultScheme",
-          "when": "view == sweetpad.build.view",
-          "group": "context@7"
-        },
-        {
-          "command": "sweetpad.build.genereateBuildServerConfig",
-          "when": "view == sweetpad.build.view",
-          "group": "context@8"
-        },
-        {
           "command": "sweetpad.simulators.start",
           "when": "view == sweetpad.destinations.view && viewItem =~ /destination-item-simulator.*&status=shutdown.*/",
           "group": "inline@2"
@@ -637,6 +592,56 @@
           "command": "sweetpad.tools.install",
           "when": "view == sweetpad.tools.view && viewItem == notInstalled",
           "group": "inline@2"
+        },
+        {
+          "command": "sweetpad.build.selectXcodeWorkspace",
+          "when": "view == sweetpad.view.workspaces && viewItem == workspace-group",
+          "group": "inline@1"
+        },
+        {
+          "command": "sweetpad.build.launch",
+          "when": "viewItem == sweetpad.build.view.item",
+          "group": "inline@2"
+        },
+        {
+          "command": "sweetpad.build.build",
+          "when": "viewItem == sweetpad.build.view.item",
+          "group": "inline@1"
+        },
+        {
+          "command": "sweetpad.build.launch",
+          "when": "viewItem == sweetpad.build.view.item",
+          "group": "context@1"
+        },
+        {
+          "command": "sweetpad.build.build",
+          "when": "viewItem == sweetpad.build.view.item",
+          "group": "context@2"
+        },
+        {
+          "command": "sweetpad.build.run",
+          "when": "viewItem == sweetpad.build.view.item",
+          "group": "context@3"
+        },
+        {
+          "command": "sweetpad.build.test",
+          "when": "viewItem == sweetpad.build.view.item",
+          "group": "context@4"
+        },
+        {
+          "command": "sweetpad.build.clean",
+          "when": "viewItem == sweetpad.build.view.item",
+          "group": "context@5"
+        },
+        {
+          "command": "sweetpad.build.resolveDependencies",
+          "when": "viewItem == sweetpad.build.view.item",
+          "group": "context@6"
+        },
+        {
+          "command": "sweetpad.build.setDefaultScheme",
+          "when": "viewItem == sweetpad.build.view.item",
+          "group": "context@7"
         }
       ],
       "testing/item/context": [
@@ -1095,6 +1100,14 @@
         "defaults": {
           "dark": "#00bb22",
           "light": "#007315"
+        }
+      },
+      {
+        "id": "sweetpad.workspace",
+        "description": "Workspace",
+        "defaults": {
+          "dark": "#ff8c00",
+          "light": "#ff8c00"
         }
       }
     ]

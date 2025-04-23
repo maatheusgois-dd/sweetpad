@@ -1,6 +1,6 @@
 import path from "node:path";
 import * as vscode from "vscode";
-import type { BuildTreeItem } from "./tree";
+import type { BuildTreeItem, WorkspaceGroupTreeItem } from "./tree";
 
 import { showConfigurationPicker, showYesNoQuestion } from "../common/askers";
 import {
@@ -69,6 +69,7 @@ export async function runOnMac(
     launchEnv: Record<string, string>;
   },
 ) {
+  terminal.write("Preparing to execute runOnMac command...\n");
   const buildSettings = await getBuildSettingsToLaunch({
     scheme: options.scheme,
     configuration: options.configuration,
@@ -107,6 +108,8 @@ export async function runOniOSSimulator(
     launchEnv: Record<string, string>;
   },
 ) {
+  setDefaultScheme(options.scheme);
+  terminal.write("Preparing to execute runOniOSSimulator command...\n");
   const buildSettings = await getBuildSettingsToLaunch({
     scheme: options.scheme,
     configuration: options.configuration,
@@ -184,6 +187,7 @@ export async function runOniOSDevice(
     launchEnv: Record<string, string>;
   },
 ) {
+  terminal.write("Preparing to execute runOniOSDevice command...\n");
   const { scheme, configuration, destinationId: deviceId, destinationType } = option;
 
   const buildSettings = await getBuildSettingsToLaunch({
@@ -463,6 +467,7 @@ export async function buildApp(
     destinationRaw: string;
   },
 ) {
+  terminal.write("Preparing to execute buildApp command...\n");
   const useXcbeatify = isXcbeautifyEnabled() && (await getIsXcbeautifyInstalled());
   const bundlePath = await prepareBundleDir(context, options.scheme);
   const derivedDataPath = prepareDerivedDataPath();
@@ -908,10 +913,23 @@ export async function openXcodeCommand(execution: CommandExecution) {
 /**
  * Select Xcode workspace and save it to the workspace state
  */
-export async function selectXcodeWorkspaceCommand(execution: CommandExecution) {
+export async function selectXcodeWorkspaceCommand(execution: CommandExecution, item?: WorkspaceGroupTreeItem) {
+  if (item) {
+    let path = item.workspacePath;
+    if (path) {
+      execution.context.buildManager.setCurrentWorkspacePath(path); // set the current workspace path and emit an event
+      execution.context.updateWorkspaceState("build.xcodeWorkspacePath", path);
+    }
+    execution.context.buildManager.refresh();
+    vscode.window.showInformationMessage(`Workspace path updated`);
+    return;
+  }
+
+  //triggered from the command palette
   const workspace = await selectXcodeWorkspace({
     autoselect: false,
   });
+  
   const updateAnswer = await showYesNoQuestion({
     title: "Do you want to update path to xcode workspace in the workspace settings (.vscode/settings.json)?",
   });
@@ -922,7 +940,6 @@ export async function selectXcodeWorkspaceCommand(execution: CommandExecution) {
   } else {
     execution.context.updateWorkspaceState("build.xcodeWorkspacePath", workspace);
   }
-
   execution.context.buildManager.refresh();
 }
 
@@ -931,6 +948,8 @@ export async function selectXcodeSchemeForBuildCommand(execution: CommandExecuti
     item.provider.buildManager.setDefaultSchemeForBuild(item.scheme);
     return;
   }
+
+  
 
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
   await askSchemeForBuild(execution.context, {
