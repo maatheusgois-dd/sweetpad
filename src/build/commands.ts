@@ -528,6 +528,9 @@ export async function buildApp(
  * Build app without running
  */
 export async function buildCommand(execution: CommandExecution, item?: BuildTreeItem) {
+  // Notify user that build is starting
+  vscode.window.showInformationMessage("Building is starting... This may take a while.");
+
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
   const scheme =
     item?.scheme ??
@@ -570,6 +573,8 @@ export async function buildCommand(execution: CommandExecution, item?: BuildTree
  * Build and run application on the simulator or device
  */
 export async function launchCommand(execution: CommandExecution, item?: BuildTreeItem) {
+  // Notify user that build is starting
+  vscode.window.showInformationMessage("Launching application... This may take a while.");
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
 
   const scheme =
@@ -742,6 +747,8 @@ export async function runCommand(execution: CommandExecution, item?: BuildTreeIt
  * Clean build artifacts
  */
 export async function cleanCommand(execution: CommandExecution, item?: BuildTreeItem) {
+  // Notify user that build is starting
+  vscode.window.showInformationMessage("Cleaning build artifacts... This may take a while.");
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
   const scheme =
     item?.scheme ??

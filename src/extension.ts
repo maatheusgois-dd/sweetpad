@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as http from 'http';
+import { Express } from 'express'; // Import Express type
 import {
   buildCommand,
   cleanCommand,
@@ -20,7 +22,7 @@ import { DefaultSchemeStatusBar } from "./build/status-bar.js";
 import { WorkspaceTreeProvider } from "./build/tree.js";
 import { ExtensionContext } from "./common/commands.js";
 import { errorReporting } from "./common/error-reporting.js";
-import { Logger } from "./common/logger.js";
+import { Logger, commonLogger } from "./common/logger.js";
 import { getAppPathCommand } from "./debugger/commands.js";
 import { registerDebugConfigurationProvider } from "./debugger/provider.js";
 import {
@@ -63,31 +65,51 @@ import { tuistCleanCommand, tuistEditComnmand, tuistGenerateCommand, tuistInstal
 import { createTuistWatcher } from "./tuist/watcher.js";
 import { xcodgenGenerateCommand } from "./xcodegen/commands.js";
 import { createXcodeGenWatcher } from "./xcodegen/watcher.js";
+import { createMcpServer } from './mcp_server';
+import { McpServerInstance } from './types';
+import executeCommandTool from './tools/executeCommand';
 
-export function activate(context: vscode.ExtensionContext) {
+// Keep track of the server instance
+let mcpInstance: McpServerInstance | null = null;
+
+export async function activate(context: vscode.ExtensionContext) {
   // Sentry 🚨
   errorReporting.logSetup();
 
   // 🪵🪓
   Logger.setup();
+  commonLogger.log("Sweetpad activating with DoorDash MCP lib structure...");
 
-  // Managers 💼
-  // These classes are responsible for managing the state of the specific domain. Other parts of the extension can
-  // interact with them to get the current state of the domain and subscribe to changes. For example
-  // "DestinationsManager" have methods to get the list of current ios devices and simulators, and it also have an
-  // event emitter that emits an event when the list of devices or simulators changes.
+  // Managers 
+  commonLogger.log("Instantiating BuildManager...");
   const buildManager = new BuildManager();
-  void buildManager.refresh(); // Initial refresh to populate workspaces and schemes
+  commonLogger.log("BuildManager instantiated.");
+
+  commonLogger.log("Instantiating DevicesManager...");
   const devicesManager = new DevicesManager();
+  commonLogger.log("DevicesManager instantiated.");
+
+  commonLogger.log("Instantiating SimulatorsManager...");
   const simulatorsManager = new SimulatorsManager();
+  commonLogger.log("SimulatorsManager instantiated.");
+
+  commonLogger.log("Instantiating DestinationsManager...");
   const destinationsManager = new DestinationsManager({
     simulatorsManager: simulatorsManager,
     devicesManager: devicesManager,
   });
+  commonLogger.log("DestinationsManager instantiated.");
+
+  commonLogger.log("Instantiating ToolsManager...");
   const toolsManager = new ToolsManager();
+  commonLogger.log("ToolsManager instantiated.");
+
+  commonLogger.log("Instantiating TestingManager...");
   const testingManager = new TestingManager();
+  commonLogger.log("TestingManager instantiated.");
 
   // Main context object 🌍
+  commonLogger.log("Creating ExtensionContext...");
   const _context = new ExtensionContext({
     context: context,
     destinationsManager: destinationsManager,
@@ -95,12 +117,24 @@ export function activate(context: vscode.ExtensionContext) {
     toolsManager: toolsManager,
     testingManager: testingManager,
   });
-  // Here is circular dependency, but I don't care
-  buildManager.context = _context;
-  devicesManager.context = _context;
-  destinationsManager.context = _context;
-  testingManager.context = _context;
+  commonLogger.log("ExtensionContext created.");
 
+  // Here is circular dependency, but I don't care
+  commonLogger.log("Assigning context to BuildManager...");
+  buildManager.context = _context;
+  commonLogger.log("Assigning context to DevicesManager...");
+  devicesManager.context = _context;
+  commonLogger.log("Assigning context to DestinationsManager...");
+  destinationsManager.context = _context;
+  commonLogger.log("Assigning context to TestingManager...");
+  testingManager.context = _context;
+  commonLogger.log("Context assignment complete.");
+
+  // --- Perform initial refreshes AFTER context is set ---
+  commonLogger.log("Calling buildManager.refresh()...");
+  void buildManager.refresh();
+  commonLogger.log("buildManager.refresh() called.");
+  
   // Trees 🎄
   // const buildTreeProvider = new BuildTreeProvider({
   //   context: _context,
@@ -208,6 +242,38 @@ export function activate(context: vscode.ExtensionContext) {
   d(command("sweetpad.system.createIssue.generic", createIssueGenericCommand));
   d(command("sweetpad.system.createIssue.noSchemes", createIssueNoSchemesCommand));
   d(command("sweetpad.system.testErrorReporting", testErrorReportingCommand));
+
+  // --- MCP Server Setup (Execute Command Tool) ---
+  commonLogger.log("Starting MCP Server setup (Execute Command Tool)...");
+  try {
+    mcpInstance = createMcpServer({
+        name: "SweetpadCommandRunner",
+        version: context.extension.packageJSON.version,
+        port: 61337
+    }, _context);
+
+    mcpInstance.registerTool(executeCommandTool);
+
+    await mcpInstance.start();
+    commonLogger.log("MCP Server setup complete (Execute Command Tool).");
+
+    context.subscriptions.push({
+      dispose: () => {
+        commonLogger.log("Disposing MCP Server subscription...");
+        if (mcpInstance?.server) {
+             try { mcpInstance.server.close(); } catch(e) { /* log error */ }
+        }
+        mcpInstance = null;
+      }
+    });
+
+  } catch (error: any) {
+    commonLogger.error(`Failed during MCP Server setup`, { error });
+    vscode.window.showErrorMessage(`Failed to initialize MCP Server: ${error.message}`);
+  }
 }
 
-export function deactivate() {}
+export function deactivate() {
+    commonLogger.log("Sweetpad deactivating...");
+    // Cleanup is handled by the disposable
+}
