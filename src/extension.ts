@@ -67,7 +67,6 @@ import { xcodgenGenerateCommand } from "./xcodegen/commands.js";
 import { createXcodeGenWatcher } from "./xcodegen/watcher.js";
 import { createMcpServer } from './mcp_server';
 import { McpServerInstance } from './types';
-import executeCommandTool from './tools/executeCommand';
 
 // Keep track of the server instance
 let mcpInstance: McpServerInstance | null = null;
@@ -78,38 +77,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // 🪵🪓
   Logger.setup();
-  commonLogger.log("Sweetpad activating with DoorDash MCP lib structure...");
 
-  // Managers 
-  commonLogger.log("Instantiating BuildManager...");
   const buildManager = new BuildManager();
-  commonLogger.log("BuildManager instantiated.");
-
-  commonLogger.log("Instantiating DevicesManager...");
   const devicesManager = new DevicesManager();
-  commonLogger.log("DevicesManager instantiated.");
-
-  commonLogger.log("Instantiating SimulatorsManager...");
   const simulatorsManager = new SimulatorsManager();
-  commonLogger.log("SimulatorsManager instantiated.");
-
-  commonLogger.log("Instantiating DestinationsManager...");
   const destinationsManager = new DestinationsManager({
     simulatorsManager: simulatorsManager,
     devicesManager: devicesManager,
   });
-  commonLogger.log("DestinationsManager instantiated.");
-
-  commonLogger.log("Instantiating ToolsManager...");
   const toolsManager = new ToolsManager();
-  commonLogger.log("ToolsManager instantiated.");
-
-  commonLogger.log("Instantiating TestingManager...");
   const testingManager = new TestingManager();
-  commonLogger.log("TestingManager instantiated.");
-
-  // Main context object 🌍
-  commonLogger.log("Creating ExtensionContext...");
   const _context = new ExtensionContext({
     context: context,
     destinationsManager: destinationsManager,
@@ -117,23 +94,15 @@ export async function activate(context: vscode.ExtensionContext) {
     toolsManager: toolsManager,
     testingManager: testingManager,
   });
-  commonLogger.log("ExtensionContext created.");
 
   // Here is circular dependency, but I don't care
-  commonLogger.log("Assigning context to BuildManager...");
   buildManager.context = _context;
-  commonLogger.log("Assigning context to DevicesManager...");
   devicesManager.context = _context;
-  commonLogger.log("Assigning context to DestinationsManager...");
   destinationsManager.context = _context;
-  commonLogger.log("Assigning context to TestingManager...");
   testingManager.context = _context;
-  commonLogger.log("Context assignment complete.");
 
   // --- Perform initial refreshes AFTER context is set ---
-  commonLogger.log("Calling buildManager.refresh()...");
   void buildManager.refresh();
-  commonLogger.log("buildManager.refresh() called.");
   
   // Trees 🎄
   // const buildTreeProvider = new BuildTreeProvider({
@@ -243,20 +212,20 @@ export async function activate(context: vscode.ExtensionContext) {
   d(command("sweetpad.system.createIssue.noSchemes", createIssueNoSchemesCommand));
   d(command("sweetpad.system.testErrorReporting", testErrorReportingCommand));
 
-  // --- MCP Server Setup (Execute Command Tool) ---
-  commonLogger.log("Starting MCP Server setup (Execute Command Tool)...");
+  // --- MCP Server Setup --- 
+  commonLogger.log("Starting MCP Server setup...");
   try {
     mcpInstance = createMcpServer({
-        name: "SweetpadCommandRunner",
+        name: "SweetpadCommandRunner", 
         version: context.extension.packageJSON.version,
         port: 61337
     }, _context);
 
-    mcpInstance.registerTool(executeCommandTool);
+    // Start the server
+    await mcpInstance.start(); 
+    commonLogger.log("MCP Server setup complete and started.");
 
-    await mcpInstance.start();
-    commonLogger.log("MCP Server setup complete (Execute Command Tool).");
-
+    // Disposal
     context.subscriptions.push({
       dispose: () => {
         commonLogger.log("Disposing MCP Server subscription...");

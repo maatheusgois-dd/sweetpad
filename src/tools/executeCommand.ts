@@ -1,47 +1,57 @@
 import * as vscode from 'vscode'; // Needed for executeCommand
 import { z } from 'zod';
-import { createToolFunction } from '../createToolFunction'; 
 import { commonLogger } from '../common/logger'; 
-import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import { ExtensionContext } from '../common/commands';
+import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
-// Define schema using z.object()
-const executeCommandSchema = z.object({
-  commandId: z.string().describe('The VS Code command ID to execute (e.g., sweetpad.build.build)'),
-  // commandArgs: z.array(z.any()).optional().describe('Optional arguments array for the command')
+// Schema only needs commandId
+export const executeCommandSchema = z.object({
+  commandId: z.string().describe('The VS Code command ID to execute.'),
 });
 
-// Infer the type from the schema for the implementation arguments
-type ExecuteCommandArgs = z.infer<typeof executeCommandSchema>;
+export type ExecuteCommandArgs = z.infer<typeof executeCommandSchema>;
 
-// Create the tool function
-const executeCommandTool = createToolFunction(
-  'execute_vscode_command',
-  'Executes a specified VS Code command by its ID.',
-  executeCommandSchema.shape, // Pass the raw shape
-  // Use the inferred type for args
-  (args: ExecuteCommandArgs, extra: RequestHandlerExtra<any, any>) => {
+export type ExecuteCommandExtra = {
+    extensionContext: ExtensionContext;
+}
+
+export const executeCommandImplementation = async (
+    args: ExecuteCommandArgs, 
+    extra: ExecuteCommandExtra
+): Promise<CallToolResult> => {
     const { commandId } = args;
-    commonLogger.log(`Executing VS Code command via MCP: ${commandId}`);
+    const timeoutSeconds = 600; 
+    
+    let eventListener: vscode.Disposable | undefined;
+    const waitForCompletionPromise = new Promise<"completed">((resolve) => {
+        eventListener = extra.extensionContext.simpleTaskCompletionEmitter.event(() => {
+            resolve("completed"); 
+        });
+    });
+
+    const timeoutPromise = new Promise<"timeout">((resolve) => {
+        setTimeout(() => resolve("timeout"), timeoutSeconds * 1000);
+    });
+
     try {
-
-      void vscode.commands.executeCommand(commandId);
-
-      commonLogger.log(`Command '${commandId}' executed successfully via MCP.`);
-      return {
-        content: [{ 
-            type: 'text', // Specify the content type
-            text: `Successfully executed command: ${commandId}.` 
-        }],
-      };
-    } catch (error: any) {
-       commonLogger.error(`Failed to execute command '${commandId}' via MCP`, { error });
-       return {
-         content: [{ type: 'text', text: `Error executing command '${commandId}': ${error.message}` }],
-         isError: true,
-       };
+        vscode.commands.executeCommand(commandId).then(
+            () => {},
+            (initError) => commonLogger.error(`Error returned from executeCommand ${commandId}`, { initError })
+        ); 
+    } catch (execError: any) { 
+        commonLogger.error(`Error initiating command ${commandId}`, { execError });
+        eventListener?.dispose();
+        return { content: [{ type: "text", text: `Error initiating ${commandId}: ${execError.message}` }], isError: true }; 
     }
-  }
-);
 
-export default executeCommandTool; 
+    const raceResult = await Promise.race([waitForCompletionPromise, timeoutPromise]);
+    eventListener?.dispose();
+
+    if (raceResult === "timeout") {
+        return { content: [{ type: 'text', text: `TIMEOUT after ${timeoutSeconds}s waiting for command ${commandId} to signal completion.` }], isError: true };
+    } else {
+        return { content: [{ type: 'text', text: `Read the output file for ${commandId} to determine next steps. File: ${extra.extensionContext.UI_LOG_PATH()}` }], isError: false };
+    }
+};
+
+// Remove default export if createToolFunction is not used 

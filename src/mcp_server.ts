@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { commonLogger } from './common/logger';
 import { ExtensionContext } from './common/commands';
-import { McpServer, ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js"; // Import ToolCallback
+import { McpServer, ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js"; 
 import { ZodRawShape, z } from 'zod';
 import express, { Express, Request, Response } from 'express';
@@ -9,6 +9,8 @@ import { McpServerOptions, McpServerInstance, McpToolDefinition } from './types'
 import { setupMetrics } from './metrics';
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import http from 'http';
+import { executeCommandSchema, executeCommandImplementation, ExecuteCommandArgs } from './tools/executeCommand'; 
+import { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 const SSE_ENDPOINT = '/sse';
 const MESSAGES_ENDPOINT = '/messages';
@@ -24,16 +26,30 @@ export function createMcpServer(options: McpServerOptions, extensionContext: Ext
   const transports: { [sessionId: string]: SSEServerTransport } = {};
   const metricsRegistry = setupMetrics();
 
-  // --- Setup Routes (GET /sse, POST /messages, GET /metrics) --- 
+  // --- Setup Routes --- 
   app.get(SSE_ENDPOINT, async (_: Request, res: Response) => {
+    commonLogger.log(`Received GET ${SSE_ENDPOINT}`);
     try {
+      // Set up keep-alive to prevent connection timeouts
+      const keepAliveIntervalMs = 20000;
+      const keepAliveTimer = setInterval(() => {
+        try {
+          res.write(": keep-alive\n\n");
+        } catch (error) {
+          commonLogger.error('Error writing keep-alive message', { error });
+          clearInterval(keepAliveTimer);
+        }
+      }, keepAliveIntervalMs);
+
       const transport = new SSEServerTransport(MESSAGES_ENDPOINT, res);
       transports[transport.sessionId] = transport;
-      commonLogger.log(`New SSE connection for sessionId ${transport.sessionId}`);
+      commonLogger.log(`SSE Connection: sessionId=${transport.sessionId}`);
+      
       res.on('close', () => {
-        commonLogger.log(`SSE connection closed for sessionId ${transport.sessionId}`);
+        clearInterval(keepAliveTimer);
         delete transports[transport.sessionId];
       });
+      
       await server.connect(transport);
     } catch (err) {
       commonLogger.error('Error handling SSE connection', { err });
@@ -43,13 +59,13 @@ export function createMcpServer(options: McpServerOptions, extensionContext: Ext
 
   app.post(MESSAGES_ENDPOINT, express.json(), async (req: Request, res: Response) => {
     const sessionId = req.query.sessionId as string;
+    
     const transport = transports[sessionId];
     if (transport) {
-      commonLogger.log(`Handling post message for sessionId ${sessionId}`);
       try {
         await transport.handlePostMessage(req, res, req.body);
       } catch (err) {
-        commonLogger.error(`Error handling post message for ${sessionId}`, { err });
+        commonLogger.error(`Error handling message for ${sessionId}`, { err });
         if (!res.headersSent) res.status(500).send('Error handling message');
       }
     } else {
@@ -69,18 +85,16 @@ export function createMcpServer(options: McpServerOptions, extensionContext: Ext
     }
   });
 
-  // --- Register Tools Directly using server.tool --- 
-  commonLogger.log("Registering MCP tools directly...");
-  const noArgsSchema = z.object({});
+  server.tool(
+      "execute_vscode_command", 
+      "Executes a VS Code command and waits for task completion signal.",
+      executeCommandSchema.shape,
+      async (args: ExecuteCommandArgs, frameworkExtra: RequestHandlerExtra<any, any>): Promise<CallToolResult> => {
+        return executeCommandImplementation(args, { extensionContext: extensionContext });
+      }
+  );
 
-  // --- End Tool Registration ---
-
-  // Create a placeholder registerTool function for the return type
-  // In this simplified setup, tools are registered directly above
   const registerTool = <T extends ZodRawShape>(tool: McpToolDefinition<T>): void => {
-    commonLogger.log(`Registering tool ${tool.name}`);
-    // The implementation passed in tool.implementation already has metrics/context handled
-    // if created using createToolFunction
     server.tool(tool.name, tool.description, tool.schema, tool.implementation);
   };
 
@@ -91,16 +105,13 @@ export function createMcpServer(options: McpServerOptions, extensionContext: Ext
     start: async () => {
       const port = options.port || 8000;
       return new Promise<Express>((resolve, reject) => {
-        // Wrap app with http.Server to allow closing
-        const httpServer = http.createServer(app); 
-        httpServer.on('error', (err) => { // Add error handler for listen
+        const httpServer = http.createServer(app);
+        httpServer.on('error', (err) => {
             commonLogger.error('HTTP server listen error', { err });
             reject(err);
         });
         httpServer.listen(port, () => {
           commonLogger.log(`MCP server listening on port ${port}`);
-          // Store reference to httpServer? Or return it?
-          // For now, just resolve the app as per original code.
           resolve(app);
         });
       });

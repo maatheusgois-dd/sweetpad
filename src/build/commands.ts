@@ -1003,6 +1003,8 @@ export async function selectConfigurationForBuildCommand(execution: CommandExecu
 export async function diagnoseBuildSetupCommand(execution: CommandExecution): Promise<void> {
   const context = execution.context;
 
+
+
   await runTask(context, {
     name: "Diagnose Build Setup",
     lock: "sweetpad.build",
@@ -1078,6 +1080,7 @@ export async function diagnoseBuildSetupCommand(execution: CommandExecution): Pr
           if (strerr?.includes("does not contain an Xcode project, workspace or package")) {
             _write("❌ Xcode workspace not found");
             _write("❌ Error message from xcodebuild:");
+            execution.context.simpleTaskCompletionEmitter.fire();
             _writeQuote(strerr);
             _write(
               "🌼 Check whether your project folder contains folders with the extensions .xcodeproj or .xcworkspace",
@@ -1092,15 +1095,18 @@ export async function diagnoseBuildSetupCommand(execution: CommandExecution): Pr
             return;
           }
           _write("❌ Error message from xcodebuild:");
+          execution.context.simpleTaskCompletionEmitter.fire();
           _writeQuote(strerr ?? "Unknown error");
           return;
         }
         _write("❌ Error message from xcodebuild:");
+        execution.context.simpleTaskCompletionEmitter.fire();
         _writeQuote(e instanceof Error ? e.message : String(e));
         return;
       }
       if (schemes.length === 0) {
         _write("❌ No schemes found");
+        execution.context.simpleTaskCompletionEmitter.fire();
         return;
       }
 
@@ -1112,6 +1118,7 @@ export async function diagnoseBuildSetupCommand(execution: CommandExecution): Pr
       _write("================================");
 
       _write("✅ Everything looks good!");
+      execution.context.simpleTaskCompletionEmitter.fire();
     },
   });
 }
