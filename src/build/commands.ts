@@ -69,6 +69,7 @@ export async function runOnMac(
     launchEnv: Record<string, string>;
   },
 ) {
+  vscode.window.showInformationMessage(`Running application on macOS...`);
   terminal.write("Preparing to execute runOnMac command...\n");
   const buildSettings = await getBuildSettingsToLaunch({
     scheme: options.scheme,
@@ -108,7 +109,7 @@ export async function runOniOSSimulator(
     launchEnv: Record<string, string>;
   },
 ) {
-  setDefaultScheme(options.scheme);
+  vscode.window.showInformationMessage(`Running application on iOS Simulator...`);
   terminal.write("Preparing to execute runOniOSSimulator command...\n");
   const buildSettings = await getBuildSettingsToLaunch({
     scheme: options.scheme,
@@ -187,6 +188,7 @@ export async function runOniOSDevice(
     launchEnv: Record<string, string>;
   },
 ) {
+  vscode.window.showInformationMessage(`Running application on iOS device...`);
   terminal.write("Preparing to execute runOniOSDevice command...\n");
   const { scheme, configuration, destinationId: deviceId, destinationType } = option;
 
@@ -467,6 +469,7 @@ export async function buildApp(
     destinationRaw: string;
   },
 ) {
+  vscode.window.showInformationMessage(`Building app for scheme: ${options.scheme}...`);
   terminal.write("Preparing to execute buildApp command...\n");
   const useXcbeatify = isXcbeautifyEnabled() && (await getIsXcbeautifyInstalled());
   const bundlePath = await prepareBundleDir(context, options.scheme);
@@ -530,6 +533,7 @@ export async function buildApp(
 export async function buildCommand(execution: CommandExecution, item?: BuildTreeItem) {
   // Notify user that build is starting
   vscode.window.showInformationMessage("Building is starting... This may take a while.");
+  commonLogger.log("Building is starting... This may take a while.");
 
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
   const scheme =
@@ -667,6 +671,7 @@ export async function launchCommand(execution: CommandExecution, item?: BuildTre
  * Run application on the simulator or device without building
  */
 export async function runCommand(execution: CommandExecution, item?: BuildTreeItem) {
+  vscode.window.showInformationMessage("Running application without building...");
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
 
   const scheme =
@@ -788,6 +793,7 @@ export async function cleanCommand(execution: CommandExecution, item?: BuildTree
 }
 
 export async function testCommand(execution: CommandExecution, item?: BuildTreeItem) {
+  vscode.window.showInformationMessage("Starting tests... This may take a while.");
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
   const scheme =
     item?.scheme ??
@@ -827,6 +833,7 @@ export async function testCommand(execution: CommandExecution, item?: BuildTreeI
 }
 
 export async function resolveDependencies(context: ExtensionContext, options: { scheme: string; xcworkspace: string }) {
+  vscode.window.showInformationMessage(`Resolving dependencies for scheme: ${options.scheme}...`);
   await runTask(context, {
     name: "Resolve Dependencies",
     lock: "sweetpad.build",
@@ -844,6 +851,7 @@ export async function resolveDependencies(context: ExtensionContext, options: { 
  * Resolve dependencies for the Xcode project
  */
 export async function resolveDependenciesCommand(execution: CommandExecution, item?: BuildTreeItem) {
+  vscode.window.showInformationMessage("Resolving dependencies... This may take a while.");
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
 
   const scheme =
@@ -865,6 +873,7 @@ export async function resolveDependenciesCommand(execution: CommandExecution, it
  * Context: we are storing build artifacts in the `build` directory in the storage path for support xcode-build-server.
  */
 export async function removeBundleDirCommand(execution: CommandExecution) {
+  vscode.window.showInformationMessage("Removing bundle directory...");
   const storagePath = await prepareStoragePath(execution.context);
   const bundleDir = path.join(storagePath, "build");
 
@@ -877,6 +886,7 @@ export async function removeBundleDirCommand(execution: CommandExecution) {
  * a tool that enable LSP server to see packages from the Xcode project.
  */
 export async function generateBuildServerConfigCommand(execution: CommandExecution, item?: BuildTreeItem) {
+  vscode.window.showInformationMessage("Generating build server configuration...");
   const isServerInstalled = await getIsXcodeBuildServerInstalled();
   if (!isServerInstalled) {
     throw new ExtensionError("xcode-build-server is not installed");
@@ -909,6 +919,7 @@ export async function generateBuildServerConfigCommand(execution: CommandExecuti
  * Open current project in Xcode
  */
 export async function openXcodeCommand(execution: CommandExecution) {
+  vscode.window.showInformationMessage("Opening project in Xcode...");
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
 
   await exec({
@@ -921,6 +932,7 @@ export async function openXcodeCommand(execution: CommandExecution) {
  * Select Xcode workspace and save it to the workspace state
  */
 export async function selectXcodeWorkspaceCommand(execution: CommandExecution, item?: WorkspaceGroupTreeItem) {
+  vscode.window.showInformationMessage("Selecting Xcode workspace...");
   if (item) {
     let path = item.workspacePath;
     if (path) {
@@ -951,6 +963,7 @@ export async function selectXcodeWorkspaceCommand(execution: CommandExecution, i
 }
 
 export async function selectXcodeSchemeForBuildCommand(execution: CommandExecution, item?: BuildTreeItem) {
+  vscode.window.showInformationMessage("Selecting Xcode scheme for build...");
   if (item) {
     item.provider.buildManager.setDefaultSchemeForBuild(item.scheme);
     return;
@@ -970,6 +983,7 @@ export async function selectXcodeSchemeForBuildCommand(execution: CommandExecuti
  * Ask user to select configuration for build and save it to the build manager cache
  */
 export async function selectConfigurationForBuildCommand(execution: CommandExecution): Promise<void> {
+  vscode.window.showInformationMessage("Selecting build configuration...");
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
   const configurations = await getBuildConfigurations({
     xcworkspace: xcworkspace,
@@ -1001,6 +1015,7 @@ export async function selectConfigurationForBuildCommand(execution: CommandExecu
 }
 
 export async function diagnoseBuildSetupCommand(execution: CommandExecution): Promise<void> {
+  vscode.window.showInformationMessage("Diagnosing build setup...");
   const context = execution.context;
 
 

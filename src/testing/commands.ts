@@ -9,6 +9,7 @@ import { showInputBox } from "../common/quick-pick";
 import { askSchemeForTesting, askTestingTarget } from "./utils";
 
 export async function selectTestingTargetCommand(execution: CommandExecution): Promise<void> {
+  vscode.window.showInformationMessage("Selecting testing target...");
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
   await askTestingTarget(execution.context, {
     title: "Select default testing target",
@@ -18,6 +19,7 @@ export async function selectTestingTargetCommand(execution: CommandExecution): P
 }
 
 export async function buildForTestingCommand(execution: CommandExecution): Promise<void> {
+  vscode.window.showInformationMessage("Building for testing... This may take a while.");
   return await execution.context.testingManager.buildForTestingCommand();
 }
 
@@ -25,12 +27,14 @@ export async function testWithoutBuildingCommand(
   execution: CommandExecution,
   ...items: vscode.TestItem[]
 ): Promise<void> {
+  vscode.window.showInformationMessage("Running tests without building...");
   const request = new vscode.TestRunRequest(items, [], undefined, undefined);
   const tokenSource = new vscode.CancellationTokenSource();
   execution.context.testingManager.runTestsWithoutBuilding(request, tokenSource.token);
 }
 
 export async function selectXcodeSchemeForTestingCommand(execution: CommandExecution, item?: BuildTreeItem) {
+  vscode.window.showInformationMessage("Selecting Xcode scheme for testing...");
   if (item) {
     item.provider.buildManager.setDefaultSchemeForTesting(item.scheme);
     return;
@@ -48,6 +52,7 @@ export async function selectXcodeSchemeForTestingCommand(execution: CommandExecu
  * Ask user to select configuration for testing
  */
 export async function selectConfigurationForTestingCommand(execution: CommandExecution): Promise<void> {
+  vscode.window.showInformationMessage("Selecting configuration for testing...");
   const xcworkspace = await askXcodeWorkspacePath(execution.context);
   const configurations = await getBuildConfigurations({
     xcworkspace: xcworkspace,
