@@ -1061,6 +1061,11 @@ export async function diagnoseBuildSetupCommand(execution: CommandExecution): Pr
       _write(`✅ Xcode workspace path: ${xcWorkspacePath ?? "<project-root>"}\n`);
       _write("================================");
 
+      const currentScheme = context.getWorkspaceState("build.xcodeScheme");
+      _write("🔎 Checking current xcode scheme");
+      _write(`✅ Xcode scheme: ${currentScheme ?? "<default>"}\n`);
+      _write("================================");
+
       _write("🔎 Getting schemes");
       let schemes: XcodeScheme[] = [];
       try {
