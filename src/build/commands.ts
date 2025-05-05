@@ -912,6 +912,7 @@ export async function generateBuildServerConfigCommand(execution: CommandExecuti
     const buildServerPath = vscode.Uri.file(path.join(workspacePath, "buildServer.json"));
     await vscode.commands.executeCommand("vscode.open", buildServerPath);
   }
+  execution.context.simpleTaskCompletionEmitter.fire();
 }
 
 /**
@@ -960,6 +961,8 @@ export async function selectXcodeWorkspaceCommand(execution: CommandExecution, i
     execution.context.updateWorkspaceState("build.xcodeWorkspacePath", workspace);
   }
   execution.context.buildManager.refresh();
+
+  execution.context.simpleTaskCompletionEmitter.fire();
 }
 
 export async function selectXcodeSchemeForBuildCommand(execution: CommandExecution, item?: BuildTreeItem) {
@@ -977,6 +980,8 @@ export async function selectXcodeSchemeForBuildCommand(execution: CommandExecuti
     xcworkspace: xcworkspace,
     ignoreCache: true,
   });
+
+  execution.context.simpleTaskCompletionEmitter.fire();
 }
 
 /**
