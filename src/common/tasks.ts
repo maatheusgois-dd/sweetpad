@@ -524,10 +524,10 @@ async function runTaskV2(
     options.source ?? "sweetpad",
     new vscode.CustomExecution(async () => {
       return new TaskTerminalV2(context, {
-        callback: (terminal) => {
+        callback: async (terminal) => {
           // we propagate current command to the callback because vscode.CustomExecution
           // breaks the context that we use to show progress
-          return context.setExecutionScope(currentScope, () => {
+          return await context.setExecutionScopeAsync(currentScope, () => {
             return options.callback(terminal);
           });
         },

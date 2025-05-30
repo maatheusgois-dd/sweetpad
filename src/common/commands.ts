@@ -66,6 +66,9 @@ export class ExtensionContext {
   public buildManager: BuildManager;
   public testingManager: TestingManager;
   private _sessionState: Map<SessionStateKey, unknown> = new Map();
+  private _currentExecutionScope: TaskExecutionScope | null = null;
+  private _executionScopeId: string | null = null;
+  private _eventEmitter = new vscode.EventEmitter<{ event: string; data?: any }>();
 
   constructor(options: {
     context: vscode.ExtensionContext;
@@ -85,6 +88,76 @@ export class ExtensionContext {
   public simpleTaskCompletionEmitter = new vscode.EventEmitter<void>();
   // ---------------------------------------------------
 
+  // --- Event system for execution scope tracking ---
+  on(event: string, listener: (data?: any) => void): vscode.Disposable {
+    return this._eventEmitter.event((e) => {
+      if (e.event === event) {
+        listener(e.data);
+      }
+    });
+  }
+
+  private emit(event: string, data?: any) {
+    this._eventEmitter.fire({ event, data });
+  }
+
+  // --- Execution scope methods ---
+  getExecutionScope(): TaskExecutionScope | null {
+    return this._currentExecutionScope;
+  }
+
+  getExecutionScopeId(): string | null {
+    return this._executionScopeId;
+  }
+
+  setExecutionScope<T>(scope: TaskExecutionScope | null, callback: () => T): T {
+    const previousScope = this._currentExecutionScope;
+    const previousScopeId = this._executionScopeId;
+    
+    this._currentExecutionScope = scope;
+    this._executionScopeId = scope ? `scope_${scope.action}_${Date.now()}` : null;
+    
+    try {
+      return callback();
+    } finally {
+      // Close the current scope and emit event
+      if (this._currentExecutionScope) {
+        this.emit("executionScopeClosed", {
+          id: this._executionScopeId,
+          scope: this._currentExecutionScope
+        });
+      }
+      
+      // Restore previous scope
+      this._currentExecutionScope = previousScope;
+      this._executionScopeId = previousScopeId;
+    }
+  }
+
+  async setExecutionScopeAsync<T>(scope: TaskExecutionScope | null, callback: () => Promise<T>): Promise<T> {
+    const previousScope = this._currentExecutionScope;
+    const previousScopeId = this._executionScopeId;
+    
+    this._currentExecutionScope = scope;
+    this._executionScopeId = scope ? `scope_${scope.action}_${Date.now()}` : null;
+    
+    try {
+      return await callback();
+    } finally {
+      // Close the current scope and emit event
+      if (this._currentExecutionScope) {
+        this.emit("executionScopeClosed", {
+          id: this._executionScopeId,
+          scope: this._currentExecutionScope
+        });
+      }
+      
+      // Restore previous scope
+      this._currentExecutionScope = previousScope;
+      this._executionScopeId = previousScopeId;
+    }
+  }
+
   // --- Define path for the UI log --- \
   public UI_LOG_PATH = (): string => {
     var workspaceFolders = vscode.workspace.workspaceFolders;
@@ -102,18 +175,20 @@ export class ExtensionContext {
     // Track the start of task execution
     commonLogger.log(`🍭 Started task: ${scope.action}`);
     
-    try {
-      const result = await callback();
-      
-      // Signal completion to MCP server
-      this.simpleTaskCompletionEmitter.fire();
-      commonLogger.log(`✅ Completed task: ${scope.action}`);
-      
-      return result;
-    } catch (error) {
-      commonLogger.error(`❌ Failed task: ${scope.action}`, { error });
-      throw error;
-    }
+    return await this.setExecutionScopeAsync(scope, async () => {
+      try {
+        const result = await callback();
+        
+        // Signal completion to MCP server
+        this.simpleTaskCompletionEmitter.fire();
+        commonLogger.log(`✅ Completed task: ${scope.action}`);
+        
+        return result;
+      } catch (error) {
+        commonLogger.error(`❌ Failed task: ${scope.action}`, { error });
+        throw error;
+      }
+    });
   }
 
   updateProgressStatus(message: string) {
