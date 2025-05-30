@@ -116,6 +116,12 @@ export class ExtensionContext {
     }
   }
 
+  updateProgressStatus(message: string) {
+    // Show progress status to user in VS Code status bar
+    vscode.window.setStatusBarMessage(`SweetPad: ${message}`, 2000);
+    commonLogger.log(`Progress: ${message}`);
+  }
+
   get storageUri() {
     return this._context.storageUri;
   }
