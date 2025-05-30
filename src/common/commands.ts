@@ -31,6 +31,14 @@ export type LastLaunchedAppContext =
   | LastLaunchedAppSimulatorContext
   | LastLaunchedAppMacOSContext;
 
+export class TaskExecutionScope {
+  public action: string;
+  
+  constructor(options: { action: string }) {
+    this.action = options.action;
+  }
+}
+
 type WorkspaceTypes = {
   "build.xcodeWorkspacePath": string;
   "build.xcodeProjectPath": string;
@@ -89,6 +97,24 @@ export class ExtensionContext {
     return ""; // TODO: Handle this better
   };
   // ---------------------------------
+
+  async startExecutionScope<T>(scope: TaskExecutionScope, callback: () => Promise<T>): Promise<T> {
+    // Track the start of task execution
+    commonLogger.log(`🍭 Started task: ${scope.action}`);
+    
+    try {
+      const result = await callback();
+      
+      // Signal completion to MCP server
+      this.simpleTaskCompletionEmitter.fire();
+      commonLogger.log(`✅ Completed task: ${scope.action}`);
+      
+      return result;
+    } catch (error) {
+      commonLogger.error(`❌ Failed task: ${scope.action}`, { error });
+      throw error;
+    }
+  }
 
   get storageUri() {
     return this._context.storageUri;
