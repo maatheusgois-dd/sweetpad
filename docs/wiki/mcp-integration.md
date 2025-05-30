@@ -11,7 +11,7 @@ The MCP server in SweetPad provides a bridge between AI assistants and VS Code c
 SweetPad's MCP implementation uses:
 - **Transport**: HTTP with Server-Sent Events (SSE) 
 - **Port**: 61337 (default)
-- **Server Name**: "SweetpadCommandRunner"
+- **Server Name**: "SweetPadCommandRunner"
 - **Protocol Version**: Latest MCP specification
 
 ### Endpoints

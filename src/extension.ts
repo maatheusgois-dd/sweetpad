@@ -47,7 +47,7 @@ import { SimulatorsManager } from "./simulators/manager.js";
 import {
   createIssueGenericCommand,
   createIssueNoSchemesCommand,
-  resetSweetpadCache,
+  resetSweetPadCache,
   testErrorReportingCommand,
 } from "./system/commands.js";
 import {
@@ -202,7 +202,7 @@ export async function activate(context: vscode.ExtensionContext) {
   d(command("sweetpad.tools.documentation", openDocumentationCommand));
 
   // System
-  d(command("sweetpad.system.resetSweetpadCache", resetSweetpadCache));
+  d(command("sweetpad.system.resetSweetPadCache", resetSweetPadCache));
   d(command("sweetpad.system.createIssue.generic", createIssueGenericCommand));
   d(command("sweetpad.system.createIssue.noSchemes", createIssueNoSchemesCommand));
   d(command("sweetpad.system.testErrorReporting", testErrorReportingCommand));
@@ -211,7 +211,7 @@ export async function activate(context: vscode.ExtensionContext) {
   commonLogger.log("Starting MCP Server setup...");
   try {
     mcpInstance = createMcpServer({
-        name: "SweetpadCommandRunner", 
+        name: "SweetPadCommandRunner", 
         version: context.extension.packageJSON.version,
         port: 61337
     }, _context);
@@ -238,6 +238,6 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-    commonLogger.log("Sweetpad deactivating...");
+    commonLogger.log("SweetPad deactivating...");
     // Cleanup is handled by the disposable
 }
