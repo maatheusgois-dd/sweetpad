@@ -19,7 +19,7 @@ import {
 import { BuildManager } from "./build/manager.js";
 import { XcodeBuildTaskProvider } from "./build/provider.js";
 import { DefaultSchemeStatusBar } from "./build/status-bar.js";
-import { WorkspaceTreeProvider } from "./build/tree.js";
+import { BuildTreeProvider } from "./build/tree.js";
 import { ExtensionContext } from "./common/commands.js";
 import { errorReporting } from "./common/error-reporting.js";
 import { Logger, commonLogger } from "./common/logger.js";
@@ -105,11 +105,7 @@ export async function activate(context: vscode.ExtensionContext) {
   void buildManager.refresh();
   
   // Trees 🎄
-  // const buildTreeProvider = new BuildTreeProvider({
-  //   context: _context,
-  //   buildManager: buildManager,
-  // });
-  const workspaceTreeProvider = new WorkspaceTreeProvider({
+  const buildTreeProvider = new BuildTreeProvider({
     context: _context,
     buildManager: buildManager,
   });
@@ -139,8 +135,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context: _context,
   });
   d(schemeStatusBar);
-  //d(tree("sweetpad.build.view", workspaceTreeProvider));
-  d(tree("sweetpad.view.workspaces", workspaceTreeProvider));
+  d(tree("sweetpad.build.view", buildTreeProvider));
   d(command("sweetpad.build.refreshView", async () => buildManager.refresh()));
   d(command("sweetpad.build.launch", launchCommand));
   d(command("sweetpad.build.run", runCommand));
