@@ -9,16 +9,27 @@ import { showInputBox } from "../common/quick-pick";
 import { askSchemeForTesting, askTestingTarget } from "./utils";
 
 export async function selectTestingTargetCommand(context: ExtensionContext): Promise<void> {
-  context.updateProgressStatus("Searching for workspace");
-  vscode.window.showInformationMessage("Selecting testing target...");
-  const xcworkspace = await askXcodeWorkspacePath(context);
+  try {
+    context.updateProgressStatus("Searching for workspace");
+    vscode.window.showInformationMessage("Selecting testing target...");
+    const xcworkspace = await askXcodeWorkspacePath(context);
 
-  context.updateProgressStatus("Selecting testing target");
-  await askTestingTarget(context, {
-    title: "Select default testing target",
-    xcworkspace: xcworkspace,
-    force: true,
-  });
+    context.updateProgressStatus("Selecting testing target");
+    await askTestingTarget(context, {
+      title: "Select default testing target",
+      xcworkspace: xcworkspace,
+      force: true,
+    });
+    
+    // Clear status when done
+    context.updateProgressStatus("");
+    vscode.window.showInformationMessage("Testing target selected successfully");
+  } catch (error) {
+    // Clear status on error
+    context.updateProgressStatus("");
+    vscode.window.showErrorMessage(`Failed to select testing target: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
+  }
 }
 
 export async function buildForTestingCommand(context: ExtensionContext): Promise<void> {
@@ -39,56 +50,85 @@ export async function testWithoutBuildingCommand(
 }
 
 export async function selectXcodeSchemeForTestingCommand(context: ExtensionContext, item?: BuildTreeItem) {
-  context.updateProgressStatus("Selecting scheme for testing");
-  vscode.window.showInformationMessage("Selecting Xcode scheme for testing...");
+  try {
+    context.updateProgressStatus("Selecting scheme for testing");
+    vscode.window.showInformationMessage("Selecting Xcode scheme for testing...");
 
-  if (item) {
-    item.provider.buildManager.setDefaultSchemeForTesting(item.scheme);
-    return;
+    if (item) {
+      item.provider.buildManager.setDefaultSchemeForTesting(item.scheme);
+      context.updateProgressStatus("");
+      vscode.window.showInformationMessage(`Testing scheme "${item.scheme}" selected successfully`);
+      return;
+    }
+
+    const xcworkspace = await askXcodeWorkspacePath(context);
+    await askSchemeForTesting(context, {
+      title: "Select scheme to set as default",
+      xcworkspace: xcworkspace,
+      ignoreCache: true,
+    });
+    
+    // Clear status when done
+    context.updateProgressStatus("");
+    vscode.window.showInformationMessage("Testing scheme selected successfully");
+  } catch (error) {
+    // Clear status on error
+    context.updateProgressStatus("");
+    vscode.window.showErrorMessage(`Failed to select testing scheme: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
   }
-
-  const xcworkspace = await askXcodeWorkspacePath(context);
-  await askSchemeForTesting(context, {
-    title: "Select scheme to set as default",
-    xcworkspace: xcworkspace,
-    ignoreCache: true,
-  });
 }
 
 /**
  * Ask user to select configuration for testing
  */
 export async function selectConfigurationForTestingCommand(context: ExtensionContext): Promise<void> {
-  context.updateProgressStatus("Searching for workspace");
-  vscode.window.showInformationMessage("Selecting configuration for testing...");
-  const xcworkspace = await askXcodeWorkspacePath(context);
+  try {
+    context.updateProgressStatus("Searching for workspace");
+    vscode.window.showInformationMessage("Selecting configuration for testing...");
+    const xcworkspace = await askXcodeWorkspacePath(context);
 
-  context.updateProgressStatus("Searching for configurations");
-  const configurations = await getBuildConfigurations({
-    xcworkspace: xcworkspace,
-  });
-
-  let selected: string | undefined;
-  if (configurations.length === 0) {
-    selected = await showInputBox({
-      title: "No configurations found. Please enter configuration name manually",
+    context.updateProgressStatus("Searching for configurations");
+    const configurations = await getBuildConfigurations({
+      xcworkspace: xcworkspace,
     });
-  } else {
-    selected = await showConfigurationPicker(configurations);
-  }
 
-  if (!selected) {
-    vscode.window.showErrorMessage("Configuration was not selected");
-    return;
-  }
+    context.updateProgressStatus("Showing configuration picker");
 
-  const saveAnswer = await showYesNoQuestion({
-    title: "Do you want to update configuration in the workspace settings (.vscode/settings.json)?",
-  });
-  if (saveAnswer) {
-    await updateWorkspaceConfig("testing.configuration", selected);
-    context.buildManager.setDefaultConfigurationForTesting(undefined);
-  } else {
-    context.buildManager.setDefaultConfigurationForTesting(selected);
+    let selected: string | undefined;
+    if (configurations.length === 0) {
+      selected = await showInputBox({
+        title: "No configurations found. Please enter configuration name manually",
+      });
+    } else {
+      selected = await showConfigurationPicker(context, configurations);
+    }
+
+    if (!selected) {
+      context.updateProgressStatus("");
+      vscode.window.showErrorMessage("Configuration was not selected");
+      return;
+    }
+
+    context.updateProgressStatus("Saving configuration");
+
+    const saveAnswer = await showYesNoQuestion({
+      title: "Do you want to update configuration in the workspace settings (.vscode/settings.json)?",
+    });
+    if (saveAnswer) {
+      await updateWorkspaceConfig("testing.configuration", selected);
+      context.buildManager.setDefaultConfigurationForTesting(undefined);
+    } else {
+      context.buildManager.setDefaultConfigurationForTesting(selected);
+    }
+    
+    // Clear status when done
+    context.updateProgressStatus("");
+    vscode.window.showInformationMessage(`Testing configuration "${selected}" selected successfully`);
+  } catch (error) {
+    // Clear status on error
+    context.updateProgressStatus("");
+    vscode.window.showErrorMessage(`Failed to select testing configuration: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
   }
 }

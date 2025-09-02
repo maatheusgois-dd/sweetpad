@@ -828,50 +828,59 @@ export async function commonBuildCommand(
   item: BuildTreeItem | undefined,
   options: { debug: boolean },
 ) {
-  context.updateProgressStatus("Searching for workspace");
-  // If item has a workspace path, use it directly
-  const xcworkspace = await askXcodeWorkspacePath(context, item?.workspacePath);
+  try {
+    context.updateProgressStatus("Searching for workspace");
+    // If item has a workspace path, use it directly
+    const xcworkspace = await askXcodeWorkspacePath(context, item?.workspacePath);
 
-  context.updateProgressStatus("Searching for scheme");
-  const scheme =
-    item?.scheme ?? (await askSchemeForBuild(context, { title: "Select scheme to build", xcworkspace: xcworkspace }));
+    context.updateProgressStatus("Searching for scheme");
+    const scheme =
+      item?.scheme ?? (await askSchemeForBuild(context, { title: "Select scheme to build", xcworkspace: xcworkspace }));
 
-  context.updateProgressStatus("Searching for configuration");
-  const configuration = await askConfiguration(context, { xcworkspace: xcworkspace });
+    context.updateProgressStatus("Searching for configuration");
+    const configuration = await askConfiguration(context, { xcworkspace: xcworkspace });
 
-  context.updateProgressStatus("Extracting build settings");
-  const buildSettings = await getBuildSettingsToAskDestination({
-    scheme: scheme,
-    configuration: configuration,
-    sdk: undefined,
-    xcworkspace: xcworkspace,
-  });
+    context.updateProgressStatus("Extracting build settings");
+    const buildSettings = await getBuildSettingsToAskDestination({
+      scheme: scheme,
+      configuration: configuration,
+      sdk: undefined,
+      xcworkspace: xcworkspace,
+    });
 
-  context.updateProgressStatus("Searching for destination");
-  const destination = await askDestinationToRunOn(context, buildSettings);
-  const destinationRaw = getXcodeBuildDestinationString({ destination: destination });
+    context.updateProgressStatus("Searching for destination");
+    const destination = await askDestinationToRunOn(context, buildSettings);
+    const destinationRaw = getXcodeBuildDestinationString({ destination: destination });
 
-  const sdk = destination.platform;
+    const sdk = destination.platform;
 
-  await runTask(context, {
-    name: "Build",
-    lock: "sweetpad.build",
-    terminateLocked: true,
-    problemMatchers: DEFAULT_BUILD_PROBLEM_MATCHERS,
-    callback: async (terminal) => {
-      await buildApp(context, terminal, {
-        scheme: scheme,
-        sdk: sdk,
-        configuration: configuration,
-        shouldBuild: true,
-        shouldClean: false,
-        shouldTest: false,
-        xcworkspace: xcworkspace,
-        destinationRaw: destinationRaw,
-        debug: options.debug,
-      });
-    },
-  });
+    context.updateProgressStatus("Starting build");
+    await runTask(context, {
+      name: "Build",
+      lock: "sweetpad.build",
+      terminateLocked: true,
+      problemMatchers: DEFAULT_BUILD_PROBLEM_MATCHERS,
+      callback: async (terminal) => {
+        await buildApp(context, terminal, {
+          scheme: scheme,
+          sdk: sdk,
+          configuration: configuration,
+          shouldBuild: true,
+          shouldClean: false,
+          shouldTest: false,
+          xcworkspace: xcworkspace,
+          destinationRaw: destinationRaw,
+          debug: options.debug,
+        });
+      },
+    });
+    // Clear status after task completes
+    context.updateProgressStatus("");
+  } catch (error) {
+    // Clear status on error
+    context.updateProgressStatus("");
+    throw error;
+  }
 }
 
 /**
@@ -882,101 +891,110 @@ async function commonLaunchCommand(
   item: BuildTreeItem | undefined,
   options: { debug: boolean },
 ) {
-  context.updateProgressStatus("Searching for workspace");
-  // If item has a workspace path, use it directly
-  const xcworkspace = await askXcodeWorkspacePath(context, item?.workspacePath);
+  try {
+    context.updateProgressStatus("Searching for workspace");
+    // If item has a workspace path, use it directly
+    const xcworkspace = await askXcodeWorkspacePath(context, item?.workspacePath);
 
-  context.updateProgressStatus("Searching for scheme");
-  const scheme =
-    item?.scheme ??
-    (await askSchemeForBuild(context, { title: "Select scheme to build and run", xcworkspace: xcworkspace }));
+    context.updateProgressStatus("Searching for scheme");
+    const scheme =
+      item?.scheme ??
+      (await askSchemeForBuild(context, { title: "Select scheme to build and run", xcworkspace: xcworkspace }));
 
-  context.updateProgressStatus("Searching for configuration");
-  const configuration = await askConfiguration(context, { xcworkspace: xcworkspace });
+    context.updateProgressStatus("Searching for configuration");
+    const configuration = await askConfiguration(context, { xcworkspace: xcworkspace });
 
-  context.updateProgressStatus("Extracting build settings");
-  const buildSettings = await getBuildSettingsToAskDestination({
-    scheme: scheme,
-    configuration: configuration,
-    sdk: undefined,
-    xcworkspace: xcworkspace,
-  });
+    context.updateProgressStatus("Extracting build settings");
+    const buildSettings = await getBuildSettingsToAskDestination({
+      scheme: scheme,
+      configuration: configuration,
+      sdk: undefined,
+      xcworkspace: xcworkspace,
+    });
 
-  context.updateProgressStatus("Searching for destination");
-  const destination = await askDestinationToRunOn(context, buildSettings);
+    context.updateProgressStatus("Searching for destination");
+    const destination = await askDestinationToRunOn(context, buildSettings);
 
-  const destinationRaw = getXcodeBuildDestinationString({ destination: destination });
+    const destinationRaw = getXcodeBuildDestinationString({ destination: destination });
 
-  const sdk = destination.platform;
+    const sdk = destination.platform;
 
-  const launchArgs = getWorkspaceConfig("build.launchArgs") ?? [];
-  const launchEnv = getWorkspaceConfig("build.launchEnv") ?? {};
+    const launchArgs = getWorkspaceConfig("build.launchArgs") ?? [];
+    const launchEnv = getWorkspaceConfig("build.launchEnv") ?? {};
 
-  await runTask(context, {
-    name: options.debug ? "Debug" : "Launch",
-    lock: "sweetpad.build",
-    terminateLocked: true,
-    problemMatchers: DEFAULT_BUILD_PROBLEM_MATCHERS,
-    callback: async (terminal) => {
-      await buildApp(context, terminal, {
-        scheme: scheme,
-        sdk: sdk,
-        configuration: configuration,
-        shouldBuild: true,
-        shouldClean: false,
-        shouldTest: false,
-        xcworkspace: xcworkspace,
-        destinationRaw: destinationRaw,
-        debug: options.debug,
-      });
-
-      if (destination.type === "macOS") {
-        await runOnMac(context, terminal, {
+    context.updateProgressStatus("Starting launch");
+    await runTask(context, {
+      name: options.debug ? "Debug" : "Launch",
+      lock: "sweetpad.build",
+      terminateLocked: true,
+      problemMatchers: DEFAULT_BUILD_PROBLEM_MATCHERS,
+      callback: async (terminal) => {
+        await buildApp(context, terminal, {
           scheme: scheme,
-          xcworkspace: xcworkspace,
-          configuration: configuration,
-          watchMarker: false,
-          launchArgs: launchArgs,
-          launchEnv: launchEnv,
-        });
-      } else if (
-        destination.type === "iOSSimulator" ||
-        destination.type === "watchOSSimulator" ||
-        destination.type === "tvOSSimulator" ||
-        destination.type === "visionOSSimulator"
-      ) {
-        await runOniOSSimulator(context, terminal, {
-          scheme: scheme,
-          destination: destination,
           sdk: sdk,
           configuration: configuration,
+          shouldBuild: true,
+          shouldClean: false,
+          shouldTest: false,
           xcworkspace: xcworkspace,
-          watchMarker: false,
-          launchArgs: launchArgs,
-          launchEnv: launchEnv,
+          destinationRaw: destinationRaw,
           debug: options.debug,
         });
-      } else if (
-        destination.type === "iOSDevice" ||
-        destination.type === "watchOSDevice" ||
-        destination.type === "tvOSDevice" ||
-        destination.type === "visionOSDevice"
-      ) {
-        await runOniOSDevice(context, terminal, {
-          scheme: scheme,
-          destination: destination,
-          sdk: sdk,
-          configuration: configuration,
-          xcworkspace: xcworkspace,
-          watchMarker: false,
-          launchArgs: launchArgs,
-          launchEnv: launchEnv,
-        });
-      } else {
-        assertUnreachable(destination);
-      }
-    },
-  });
+
+        if (destination.type === "macOS") {
+          await runOnMac(context, terminal, {
+            scheme: scheme,
+            xcworkspace: xcworkspace,
+            configuration: configuration,
+            watchMarker: false,
+            launchArgs: launchArgs,
+            launchEnv: launchEnv,
+          });
+        } else if (
+          destination.type === "iOSSimulator" ||
+          destination.type === "watchOSSimulator" ||
+          destination.type === "tvOSSimulator" ||
+          destination.type === "visionOSSimulator"
+        ) {
+          await runOniOSSimulator(context, terminal, {
+            scheme: scheme,
+            destination: destination,
+            sdk: sdk,
+            configuration: configuration,
+            xcworkspace: xcworkspace,
+            watchMarker: false,
+            launchArgs: launchArgs,
+            launchEnv: launchEnv,
+            debug: options.debug,
+          });
+        } else if (
+          destination.type === "iOSDevice" ||
+          destination.type === "watchOSDevice" ||
+          destination.type === "tvOSDevice" ||
+          destination.type === "visionOSDevice"
+        ) {
+          await runOniOSDevice(context, terminal, {
+            scheme: scheme,
+            destination: destination,
+            sdk: sdk,
+            configuration: configuration,
+            xcworkspace: xcworkspace,
+            watchMarker: false,
+            launchArgs: launchArgs,
+            launchEnv: launchEnv,
+          });
+        } else {
+          assertUnreachable(destination);
+        }
+      },
+    });
+    // Clear status after task completes
+    context.updateProgressStatus("");
+  } catch (error) {
+    // Clear status on error
+    context.updateProgressStatus("");
+    throw error;
+  }
 }
 
 /**
@@ -1500,37 +1518,53 @@ export async function selectXcodeSchemeForBuildCommand(context: ExtensionContext
  * Ask user to select configuration for build and save it to the build manager cache
  */
 export async function selectConfigurationForBuildCommand(context: ExtensionContext): Promise<void> {
-  context.updateProgressStatus("Searching for workspace");
-  vscode.window.showInformationMessage("Selecting build configuration...");
-  const xcworkspace = await askXcodeWorkspacePath(context);
+  try {
+    context.updateProgressStatus("Searching for workspace");
+    vscode.window.showInformationMessage("Selecting build configuration...");
+    const xcworkspace = await askXcodeWorkspacePath(context);
 
-  context.updateProgressStatus("Searching for configurations");
-  const configurations = await getBuildConfigurations({
-    xcworkspace: xcworkspace,
-  });
-
-  let selected: string | undefined;
-  if (configurations.length === 0) {
-    selected = await vscode.window.showInputBox({
-      title: "No configurations found. Please enter configuration name manually",
+    context.updateProgressStatus("Searching for configurations");
+    const configurations = await getBuildConfigurations({
+      xcworkspace: xcworkspace,
     });
-  } else {
-    selected = await showConfigurationPicker(context, configurations);
-  }
 
-  if (!selected) {
-    vscode.window.showErrorMessage("Configuration was not selected");
-    return;
-  }
+    context.updateProgressStatus("Showing configuration picker");
 
-  const saveAnswer = await showYesNoQuestion({
-    title: "Do you want to update configuration in the workspace settings (.vscode/settings.json)?",
-  });
-  if (saveAnswer) {
-    await updateWorkspaceConfig("build.configuration", selected);
-    context.buildManager.setDefaultConfigurationForBuild(undefined);
-  } else {
-    context.buildManager.setDefaultConfigurationForBuild(selected);
+    let selected: string | undefined;
+    if (configurations.length === 0) {
+      selected = await vscode.window.showInputBox({
+        title: "No configurations found. Please enter configuration name manually",
+      });
+    } else {
+      selected = await showConfigurationPicker(context, configurations);
+    }
+
+    if (!selected) {
+      context.updateProgressStatus("");
+      vscode.window.showErrorMessage("Configuration was not selected");
+      return;
+    }
+
+    context.updateProgressStatus("Saving configuration");
+
+    const saveAnswer = await showYesNoQuestion({
+      title: "Do you want to update configuration in the workspace settings (.vscode/settings.json)?",
+    });
+    if (saveAnswer) {
+      await updateWorkspaceConfig("build.configuration", selected);
+      context.buildManager.setDefaultConfigurationForBuild(undefined);
+    } else {
+      context.buildManager.setDefaultConfigurationForBuild(selected);
+    }
+    
+    // Clear status when done
+    context.updateProgressStatus("");
+    vscode.window.showInformationMessage(`Configuration "${selected}" selected successfully`);
+  } catch (error) {
+    // Clear status on error
+    context.updateProgressStatus("");
+    vscode.window.showErrorMessage(`Failed to select configuration: ${error instanceof Error ? error.message : String(error)}`);
+    throw error;
   }
 }
 
